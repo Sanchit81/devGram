@@ -3,23 +3,44 @@ const connectDB = require('./config/database');
 const app = express();
 const User = require('./models/user');
 
-app.post('/signUp', async (req, res) => {
-    const user = new User({
-        firstName: "John",
-        lastName: "Singh",
-        email: "john@gmail.com",
-        password: "rtyjdfgh",
-        _id: "68babc1234567890abcdef12",
-    });
+app.use(express.json());
+
+app.post('/signUp',async (req,res)=>{
+    const user = new User(req.body);
     try {
         await user.save();
         res.send('User signed up successfully');
     } catch (error) {
-        res.status(400).send('User sign up failed', +error.message);
-
+        res.status(500).send('Error signing up the user'+error.message); 
+    }
+});
+//can use find() if we want to find multiple user with same email id or any other data.
+app.get('/getUser',async (req,res)=>{
+    const userEmail = req.body.email;
+    try {
+        console.log("This is the email you entered:-"+userEmail);
+        const user = await User.findOne({email : userEmail});
+        if(!user){
+            res.status(404).send('User not found');
+        }
+        else{
+            res.send(user);
+            console.log(user);
+        }
+    } catch (error) {
+        res.status(500).send('Some trouble arrived finding the user');
     }
 });
 
+app.get('/allUser',async (req,res)=>{
+    try {
+        const users = await User.find({});
+        res.send(users);
+        console.log(users);
+    } catch (error) {
+        res.status(404).send('No users found!!!');
+    }
+});
 
 connectDB()
     .then(() => {
