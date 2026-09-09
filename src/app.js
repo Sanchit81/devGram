@@ -2,18 +2,52 @@ const express = require('express');
 const connectDB = require('./config/database');
 const app = express();
 const User = require('./models/user');
+const { validateSignUp } = require('./utils/validate');
+const bcrypt = require('bcrypt');
+const user = require('./models/user');
 
 app.use(express.json());
 
 app.post('/signUp', async (req, res) => {
-    const user = new User(req.body);
+    //const user = new User(req.body)
     try {
+        validateSignUp(req);
+        const { firstName, lastName, email, password } = req.body;
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const user = User({
+            firstName,
+            lastName,
+            email,
+            password: hashedPassword,
+        })
         await user.save();
         res.send('User signed up successfully');
     } catch (error) {
         res.status(500).send('Error signing up the user' + error.message);
     }
 });
+
+app.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        const user = await User.findOne({email});
+        if (!user) {
+            throw new Error('Invalid Credentials!!');
+        }
+
+        const isPassValid = await bcrypt.compare(password, user.password);
+        if (!isPassValid) {
+            throw new Error('Invalid Credentials!');
+        } else {
+            res.send("User login successfull");
+        }
+    } catch (error) {
+        res.status(501).send('User login failed!!' +error.message);
+    }
+});
+
 //can use find() if we want to find multiple user with same email id or any other data.
 app.get('/getUser', async (req, res) => {
     const userEmail = req.body.email;
@@ -82,7 +116,7 @@ app.patch('/update/:userId', async (req, res) => {
             console.log(user);
         }
     } catch (error) {
-        res.status(500).send('Error updating the user'+error.message);
+        res.status(500).send('Error updating the user' + error.message);
     }
 });
 
