@@ -5,25 +5,25 @@ const User = require('./models/user');
 
 app.use(express.json());
 
-app.post('/signUp',async (req,res)=>{
+app.post('/signUp', async (req, res) => {
     const user = new User(req.body);
     try {
         await user.save();
         res.send('User signed up successfully');
     } catch (error) {
-        res.status(500).send('Error signing up the user'+error.message); 
+        res.status(500).send('Error signing up the user' + error.message);
     }
 });
 //can use find() if we want to find multiple user with same email id or any other data.
-app.get('/getUser',async (req,res)=>{
+app.get('/getUser', async (req, res) => {
     const userEmail = req.body.email;
     try {
-        console.log("This is the email you entered:-"+userEmail);
-        const user = await User.findOne({email : userEmail});
-        if(!user){
+        console.log("This is the email you entered:-" + userEmail);
+        const user = await User.findOne({ email: userEmail });
+        if (!user) {
             res.status(404).send('User not found');
         }
-        else{
+        else {
             res.send(user);
             console.log(user);
         }
@@ -32,7 +32,7 @@ app.get('/getUser',async (req,res)=>{
     }
 });
 
-app.get('/allUser',async (req,res)=>{
+app.get('/allUser', async (req, res) => {
     try {
         const users = await User.find({});
         res.send(users);
@@ -42,15 +42,15 @@ app.get('/allUser',async (req,res)=>{
     }
 });
 
-app.delete('/delUser',async (req,res)=>{
+app.delete('/delUser', async (req, res) => {
     const userId = req.body.Id;
     try {
-        const user = await User.findByIdAndDelete(userId); 
-      //const user = await User.findByIdAndDelete({_id:userId});
-        if(!user){
+        const user = await User.findByIdAndDelete(userId);
+        //const user = await User.findByIdAndDelete({_id:userId});
+        if (!user) {
             res.status(404).send('No such users exist');
         }
-        else{
+        else {
             res.send('User deleted successfully');
         }
     } catch (error) {
@@ -58,21 +58,32 @@ app.delete('/delUser',async (req,res)=>{
     }
 });
 
-app.patch('/update',async (req,res)=>{
-    const userId = req.body.Id;
+app.patch('/update/:userId', async (req, res) => {
+    const userId = req.params?.userId;
     const userData = req.body;
     try {
-        const user = await User.findByIdAndUpdate(userId,userData);
-        if(!user){
+        const ALLOWED_TO_UPDATE = ["photoURL", "about", "age", "skills"];
+        const isUpdateAllowed = Object.keys(userData).every((k) =>
+            ALLOWED_TO_UPDATE.includes(k));
+        if (!isUpdateAllowed) {
+            throw new Error('Update not allowed');
+        }
+
+        if (userData.skills?.length > 10) {
+            throw new Error("Skills cannot be more than 10!!");
+        }
+
+        const user = await User.findByIdAndUpdate(userId, userData);
+        if (!user) {
             res.status(404).send('No such user exist');
         }
-        else{
+        else {
             res.send('User updated successfully');
             console.log(user);
         }
     } catch (error) {
-        res.status(500).send('Error updating the user');
-    } 
+        res.status(500).send('Error updating the user'+error.message);
+    }
 });
 
 connectDB()
