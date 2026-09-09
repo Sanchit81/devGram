@@ -5,8 +5,11 @@ const User = require('./models/user');
 const { validateSignUp } = require('./utils/validate');
 const bcrypt = require('bcrypt');
 const user = require('./models/user');
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.post('/signUp', async (req, res) => {
     //const user = new User(req.body)
@@ -38,13 +41,39 @@ app.post('/login', async (req, res) => {
         }
 
         const isPassValid = await bcrypt.compare(password, user.password);
-        if (!isPassValid) {
-            throw new Error('Invalid Credentials!');
+        if (isPassValid) {
+            const token = await jwt.sign({_id:user._id},"dkggjif5675gdf");
+            res.cookie("token",token);
+            res.send("Login successfull!!");
         } else {
-            res.send("User login successfull");
+            throw new Error("Invalid Credentials!!");
         }
     } catch (error) {
         res.status(501).send('User login failed!!' +error.message);
+    }
+});
+
+app.get('/profile',async (req,res)=>{
+    const cookies = req.cookies;
+    const {token} = cookies;
+
+    try {
+        if(!token){
+        throw new Error('Invalid Token!!');
+    }
+
+    const decode = await jwt.verify(token,"dkggjif5675gdf");
+
+    const {_id} = decode;
+
+    const user = await User.findById({_id});
+    if(!user){
+        throw new Error('User does not exist!!');
+    }
+
+    res.send(user);
+    } catch (error) {
+        res.status(500).send("Can't access profile" +error.message);
     }
 });
 
