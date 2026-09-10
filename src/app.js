@@ -7,6 +7,7 @@ const bcrypt = require('bcrypt');
 const user = require('./models/user');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
+const {userAuth} = require('./middlewares/auth');
 
 app.use(express.json());
 app.use(cookieParser());
@@ -35,45 +36,30 @@ app.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        const user = await User.findOne({email});
+        const user = await User.findOne({email: email});
         if (!user) {
             throw new Error('Invalid Credentials!!');
         }
 
-        const isPassValid = await bcrypt.compare(password, user.password);
+        const isPassValid = await user.validatePassword(password);
         if (isPassValid) {
-            const token = await jwt.sign({_id:user._id},"dkggjif5675gdf");
-            res.cookie("token",token);
+            const token = await user.getJWT();
+            res.cookie("token", token);
             res.send("Login successfull!!");
         } else {
             throw new Error("Invalid Credentials!!");
         }
     } catch (error) {
-        res.status(501).send('User login failed!!' +error.message);
+        res.status(501).send('User login failed!!' + error.message);
     }
 });
 
-app.get('/profile',async (req,res)=>{
-    const cookies = req.cookies;
-    const {token} = cookies;
-
+app.get('/profile',userAuth, async (req, res) => {
     try {
-        if(!token){
-        throw new Error('Invalid Token!!');
-    }
-
-    const decode = await jwt.verify(token,"dkggjif5675gdf");
-
-    const {_id} = decode;
-
-    const user = await User.findById({_id});
-    if(!user){
-        throw new Error('User does not exist!!');
-    }
-
-    res.send(user);
+        const user = req.user;
+        res.send(user);
     } catch (error) {
-        res.status(500).send("Can't access profile" +error.message);
+        res.status(500).send("Can't access profile" + error.message);
     }
 });
 
