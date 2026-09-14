@@ -1,139 +1,22 @@
 const express = require('express');
 const connectDB = require('./config/database');
 const app = express();
-const User = require('./models/user');
-const { validateSignUp } = require('./utils/validate');
-const bcrypt = require('bcrypt');
-const user = require('./models/user');
 const cookieParser = require('cookie-parser');
-const jwt = require('jsonwebtoken');
-const {userAuth} = require('./middlewares/auth');
+
+
+const {authRouter} = require('./routes/auth');
+const {profileRouter} = require('./routes/profile');
+const {reqRouter} = require('./routes/userRequest');
+const {userRouter} = require('./routes/user');
 
 app.use(express.json());
 app.use(cookieParser());
 
-app.post('/signUp', async (req, res) => {
-    //const user = new User(req.body)
-    try {
-        validateSignUp(req);
-        const { firstName, lastName, email, password } = req.body;
+app.use('/',authRouter);
+app.use('/',profileRouter);
+app.use('/',reqRouter);
+app.use('/',userRouter);
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const user = User({
-            firstName,
-            lastName,
-            email,
-            password: hashedPassword,
-        })
-        await user.save();
-        res.send('User signed up successfully');
-    } catch (error) {
-        res.status(500).send('Error signing up the user' + error.message);
-    }
-});
-
-app.post('/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        const user = await User.findOne({email: email});
-        if (!user) {
-            throw new Error('Invalid Credentials!!');
-        }
-
-        const isPassValid = await user.validatePassword(password);
-        if (isPassValid) {
-            const token = await user.getJWT();
-            res.cookie("token", token);
-            res.send("Login successfull!!");
-        } else {
-            throw new Error("Invalid Credentials!!");
-        }
-    } catch (error) {
-        res.status(501).send('User login failed!!' + error.message);
-    }
-});
-
-app.get('/profile',userAuth, async (req, res) => {
-    try {
-        const user = req.user;
-        res.send(user);
-    } catch (error) {
-        res.status(500).send("Can't access profile" + error.message);
-    }
-});
-
-//can use find() if we want to find multiple user with same email id or any other data.
-app.get('/getUser', async (req, res) => {
-    const userEmail = req.body.email;
-    try {
-        console.log("This is the email you entered:-" + userEmail);
-        const user = await User.findOne({ email: userEmail });
-        if (!user) {
-            res.status(404).send('User not found');
-        }
-        else {
-            res.send(user);
-            console.log(user);
-        }
-    } catch (error) {
-        res.status(500).send('Some trouble arrived finding the user');
-    }
-});
-
-app.get('/allUser', async (req, res) => {
-    try {
-        const users = await User.find({});
-        res.send(users);
-        console.log(users);
-    } catch (error) {
-        res.status(404).send('No users found!!!');
-    }
-});
-
-app.delete('/delUser', async (req, res) => {
-    const userId = req.body.Id;
-    try {
-        const user = await User.findByIdAndDelete(userId);
-        //const user = await User.findByIdAndDelete({_id:userId});
-        if (!user) {
-            res.status(404).send('No such users exist');
-        }
-        else {
-            res.send('User deleted successfully');
-        }
-    } catch (error) {
-        res.status(500).send("Error deleting user");
-    }
-});
-
-app.patch('/update/:userId', async (req, res) => {
-    const userId = req.params?.userId;
-    const userData = req.body;
-    try {
-        const ALLOWED_TO_UPDATE = ["photoURL", "about", "age", "skills"];
-        const isUpdateAllowed = Object.keys(userData).every((k) =>
-            ALLOWED_TO_UPDATE.includes(k));
-        if (!isUpdateAllowed) {
-            throw new Error('Update not allowed');
-        }
-
-        if (userData.skills?.length > 10) {
-            throw new Error("Skills cannot be more than 10!!");
-        }
-
-        const user = await User.findByIdAndUpdate(userId, userData);
-        if (!user) {
-            res.status(404).send('No such user exist');
-        }
-        else {
-            res.send('User updated successfully');
-            console.log(user);
-        }
-    } catch (error) {
-        res.status(500).send('Error updating the user' + error.message);
-    }
-});
 
 connectDB()
     .then(() => {
@@ -146,3 +29,5 @@ connectDB()
         console.error('Cannot connect to database!');
 
     });
+
+  
